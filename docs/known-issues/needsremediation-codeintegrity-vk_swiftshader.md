@@ -49,16 +49,16 @@ program — just not packaged as MSIX.
 
 ## Environment this was observed on
 
-- Windows 11 25H2, Build `26200.8655` (also reproduced on `26200.8875` before
-  a rollback — see [Windows Update rollback did not help](#windows-update-rollback-did-not-help))
+- Windows 11 25H2, Build `26200.8655` (also reproduced on `26200.8875` — see
+  [What did *not* fix it](#what-did-not-fix-it): rolling back the update
+  didn't change the outcome)
 - Claude Desktop `1.24012.9.0`, MSIX package family `Claude_pzs8sxrjxfjjc`
-- Reproduced independently across different GPU vendors/configurations
-  (multi-GPU laptop/desktop setups, including Intel iGPU + discrete GPU
-  combinations per the linked GitHub issues) — this is **not** specific to one
-  graphics vendor or one virtual display driver.
+- Reproduced across multiple GPU vendors and multi-GPU laptop/desktop setups
+  (see the linked GitHub issues below) — **not** specific to one graphics
+  vendor or virtual display driver.
 
-This is corroborated by multiple independent reporters on the same Windows
-build range; see [Related upstream issues](#related-upstream-issues).
+Corroborated by multiple independent reporters on the same Windows build
+range — see [Related upstream issues](#related-upstream-issues).
 
 ## Symptom timeline
 
@@ -109,7 +109,7 @@ CodeIntegrity.cat missing/unresolvable (Event 3010)
 already being flagged, not the original trigger — don't chase it directly;
 the real signal is the Event 3010/3033 pair above.
 
-Critically, **this is not unique to Claude Desktop.** The same
+**This is not unique to Claude Desktop.** The same
 Code-Integrity-vs-bundled-SwiftShader interaction has been reported in
 OpenAI's Codex/ChatGPT Electron app
 ([openai/codex#34133](https://github.com/openai/codex/issues/34133)), which
@@ -164,16 +164,11 @@ don't repeat the same dead ends:
 | GPU driver / virtual display conflict | Disabling virtual display adapters made no difference; multiple different GPU vendors reproduce the same failure in the linked upstream issues |
 | One specific Windows Update (`KB5101650`) | Rolling the build back from `26200.8875` to `26200.8655` did not resolve it — this is not a single-KB regression |
 
-### Windows Update rollback did not help
-
-Given the number of components involved, it's tempting to blame "some
-recent Windows update." Rolling back one cumulative update did not change
-the outcome, and reinstalling Windows entirely was considered but never
-needed — the `--exe` workaround made it unnecessary. If you're tempted to
-reinstall Windows over this: don't, try the workaround first.
-
 ## What to avoid trying
 
+- **Reinstalling Windows.** It's tempting once you've ruled out this many
+  components, but it was never necessary here — try the `--exe` workaround
+  first.
 - **Enabling Developer Mode** (`AllowDevelopmentWithoutDevLicense`) — this is
   a sideloading policy switch, not a Code Integrity fix, and unnecessarily
   widens what your machine will run unsigned.
