@@ -1,0 +1,89 @@
+name: Known issue submission
+description: Submit a new root-cause/fix case for the known-issues database
+title: "[Known issue] "
+labels: ["known-issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this if you've found a *root cause and a fix* (not just a symptom
+        report — for that, use "Diagnostic report" instead). Well-documented
+        cases get folded into `docs/known-issues/`. Scrub personal info first —
+        see [CONTRIBUTING.md](../../CONTRIBUTING.md#before-you-post-anything).
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version / build
+    validations:
+      required: true
+
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Desktop version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - MSIX via ClaudeSetup.exe (default)
+        - MSIX installed directly (Add-AppxPackage)
+        - Legacy EXE (ClaudeSetup.exe --exe)
+        - Enterprise deployment (Intune/provisioned)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: status-before
+    attributes:
+      label: Package status right after install (Get-AppxPackage)
+      placeholder: e.g. Ok
+
+  - type: input
+    id: status-after
+    attributes:
+      label: Package status after the failure occurred
+      placeholder: e.g. Modified, NeedsRemediation
+
+  - type: checkboxes
+    id: codeintegrity
+    attributes:
+      label: Code Integrity / AppModel signature (see docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md)
+      options:
+        - label: CodeIntegrity Event 3010 present
+        - label: CodeIntegrity Event 3033 present (mentions vk_swiftshader.dll)
+        - label: AppModel-Runtime Event 6 / error 0x3CFC present
+
+  - type: textarea
+    id: error-codes
+    attributes:
+      label: Other error code(s) observed
+
+  - type: textarea
+    id: root-cause
+    attributes:
+      label: Root cause (what you determined actually caused it, and how)
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: What actually fixed it
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scrub-confirm
+    attributes:
+      label: Privacy check
+      options:
+        - label: I have scrubbed username, device name, email, tokens, and proxy URLs from everything above.
+          required: true
+        - label: I have not attached or linked any installer/MSIX file — only official download URLs, if any.
+          required: true

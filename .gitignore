@@ -1,0 +1,15 @@
+# Never commit diagnostic output or logs that may contain personal info
+*.diagnose.json
+*.diagnose.txt
+/out/
+/logs/
+
+# Never commit downloaded installers/packages
+*.msix
+*.exe
+
+# Editor/OS noise
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

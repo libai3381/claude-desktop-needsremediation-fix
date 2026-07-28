@@ -1,0 +1,73 @@
+name: Diagnostic report
+description: Report a Claude Desktop Windows problem, with diagnose.ps1 output
+title: "[Diagnostic] "
+labels: ["diagnostic-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: please scrub personal info per [CONTRIBUTING.md](../../CONTRIBUTING.md#before-you-post-anything)
+        (username, device name, email, tokens, proxy URLs). `diagnose.ps1` does
+        not collect any of these by design, but double-check before posting.
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Symptom
+      options:
+        - Won't launch after update
+        - Clicking the icon does nothing
+        - Login/verification page appears then crashes
+        - Windows says "needs repair"
+        - Repair button doesn't fix it
+        - Reset fails
+        - Install/reinstall fails
+        - Proxy/network related
+        - WebView2 related
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Desktop version
+      placeholder: e.g. 1.24012.9.0
+    validations:
+      required: true
+
+  - type: input
+    id: windows-build
+    attributes:
+      label: Windows version / build / edition / architecture
+      placeholder: e.g. Windows 11 25H2, Build 26200.8655, Pro, x64
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnose-output
+    attributes:
+      label: diagnose.ps1 -Json output
+      description: Run `.\scripts\diagnose.ps1 -Json` and paste the full output here.
+      render: json
+    validations:
+      required: true
+
+  - type: input
+    id: error-code
+    attributes:
+      label: Error code(s), if any
+      placeholder: e.g. 0x80073CF6, 0x3CFC
+
+  - type: textarea
+    id: steps-tried
+    attributes:
+      label: What have you already tried?
+
+  - type: checkboxes
+    id: scrub-confirm
+    attributes:
+      label: Privacy check
+      options:
+        - label: I have scrubbed username, device name, email, tokens, and proxy URLs from the output above.
+          required: true

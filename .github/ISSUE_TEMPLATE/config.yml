@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Known issues (check first)
+    url: https://github.com/OWNER/claude-desktop-needsremediation-fix/tree/main/docs/known-issues
+    about: Check if your case is already documented before opening a new issue.
+  - name: Official Claude Desktop support
+    url: https://support.claude.com
+    about: For account, billing, or general product questions unrelated to Windows diagnostics — this repo is unofficial and can't help with those.
