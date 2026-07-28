@@ -37,7 +37,7 @@ with a confirmed working fix. Read the full writeup:
 ## Quickstart
 
 ```powershell
-git clone https://github.com/OWNER/claude-desktop-needsremediation-fix.git
+git clone https://github.com/libai3381/claude-desktop-needsremediation-fix.git
 cd claude-desktop-needsremediation-fix
 .\scripts\diagnose.ps1
 ```
