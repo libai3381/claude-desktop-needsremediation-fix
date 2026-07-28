@@ -7,8 +7,6 @@ A community toolkit to diagnose and recover Claude Desktop Windows failures
 caused by MSIX/AppX, Code Integrity, WebView2, network proxy, and system
 compatibility issues.
 
-一个帮助 Claude Desktop Windows 用户诊断和修复更新失败、启动异常和环境兼容问题的开源工具。
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE)
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
@@ -21,13 +19,17 @@ compatibility issues.
 
 ## The problem
 
-Claude Desktop installs fine, then something breaks — it won't launch after
-an update, the icon does nothing, the login page flashes and the window
-disappears, or Windows says the app "needs to be repaired" and the repair
-itself fails. Windows' own MSIX/AppX packaging, Code Integrity, WebView2,
-your network/proxy setup, and (if you use Cowork) Hyper-V/HCS can each break
-independently, and generic advice — reinstall, clear cache, reboot, repeat —
-doesn't tell you which one actually failed.
+Claude Desktop breaks in ways generic advice can't fix:
+
+- Won't launch after an update
+- Clicking the icon does nothing
+- Login page flashes, then the window disappears
+- Windows says the app "needs to be repaired" — and repair itself fails
+
+The cause could be MSIX/AppX packaging, Windows Code Integrity, WebView2,
+your proxy setup, or (if you use Cowork) Hyper-V/HCS — each can break
+independently. "Reinstall, clear cache, reboot" doesn't tell you which one
+actually failed.
 
 **The case that started this project:** a fully-reproduced trace of Claude
 Desktop's MSIX package silently flipping to `Modified, NeedsRemediation`
@@ -44,7 +46,7 @@ cd claude-desktop-needsremediation-fix
 .\scripts\diagnose.ps1
 ```
 
-Sample output:
+Example output when it finds a match (illustrative, not a live capture):
 
 ```text
 Claude Desktop Windows Diagnostic
@@ -109,8 +111,9 @@ Integrity/AppModel path where this specific bug lives. This is an
 - [ ] **Phase 2** — tiered auto-fix script (`fix.ps1`), dry-run by default, safe actions only
 - [ ] **Phase 3** — community-sourced known-issues database, structured submissions via issue templates
 
-This project deliberately shipped Phase 1 read-only-only first — see
-[CONTRIBUTING.md](CONTRIBUTING.md) if you want to help design Phase 2 safely.
+This project deliberately shipped Phase 1 — read-only only — before touching
+anything that modifies your system. See [CONTRIBUTING.md](CONTRIBUTING.md) if
+you want to help design Phase 2 safely.
 
 ## Contributing
 

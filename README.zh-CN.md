@@ -3,9 +3,8 @@
 *[English](README.md) | [简体中文](README.zh-CN.md)*
 
 **先诊断，再修复。不要"卸载—重装—祈祷"。**
-一个帮助 Claude Desktop Windows 用户诊断和修复更新失败、启动异常和环境兼容问题的开源工具，涵盖 MSIX/AppX、Code Integrity、WebView2、网络代理和系统兼容性问题。
-
-A community toolkit to diagnose and recover Claude Desktop Windows failures caused by MSIX/AppX, Code Integrity, WebView2, network proxy, and system compatibility issues.
+一个开源工具，帮助你诊断和修复 Claude Desktop 在 Windows 上的更新失败、启动异常、
+以及 MSIX/AppX、Code Integrity、WebView2、网络代理等环境兼容问题。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE)
@@ -19,11 +18,16 @@ A community toolkit to diagnose and recover Claude Desktop Windows failures caus
 
 ## 问题背景
 
-Claude Desktop 装好后能用，但某个时刻突然坏掉：更新后无法启动、点击图标没反应、
-登录页面一闪而过窗口就消失了，或者 Windows 提示应用"需要修复"而修复本身也失败。
-Windows 自身的 MSIX/AppX 打包机制、Code Integrity（代码完整性校验）、WebView2、
-你的网络/代理环境，以及（如果你用 Cowork）Hyper-V/HCS，任何一个环节都可能独立出问题，
-而"重装、清缓存、重启电脑"这类通用建议根本不会告诉你到底是哪一环坏了。
+Claude Desktop 会以通用建议解决不了的方式坏掉：
+
+- 更新后无法启动
+- 点击图标没有任何反应
+- 登录页面一闪而过，窗口随后消失
+- Windows 提示应用"需要修复"——而修复本身也失败
+
+原因可能出在 MSIX/AppX 打包、Windows Code Integrity（代码完整性校验）、WebView2、
+你的代理环境，或者（如果你用 Cowork）Hyper-V/HCS——任何一环都可能独立出问题。
+"重装、清缓存、重启电脑"这类建议不会告诉你到底是哪一环坏了。
 
 **促成本项目的那个案例：** 一次被完整复现的排查记录——Claude Desktop 的 MSIX 软件包
 在首次启动后悄悄变成 `Modified, NeedsRemediation`，根因被定位到 Windows Code Integrity
@@ -39,7 +43,7 @@ cd claude-desktop-needsremediation-fix
 .\scripts\diagnose.ps1
 ```
 
-输出示例：
+命中案例时的输出示例（仅为示意，非真实抓取）：
 
 ```text
 Claude Desktop Windows Diagnostic
@@ -103,8 +107,8 @@ Code Integrity/AppModel 路径。这是一个**官方安装器未公开文档的
 - [ ] **第二阶段** — 分级自动修复脚本（`fix.ps1`），默认 dry-run，只执行安全操作
 - [ ] **第三阶段** — 社区共建的已知问题数据库，通过 issue 模板结构化提交
 
-本项目刻意先只发布第一阶段（纯只读）——如果你想帮忙一起设计第二阶段的安全边界，
-欢迎看看 [CONTRIBUTING.md](CONTRIBUTING.md)（英文）。
+本项目刻意先只发布"纯只读"的第一阶段，之后才会碰任何会修改系统状态的功能。
+如果你想帮忙一起设计第二阶段的安全边界，欢迎看看 [CONTRIBUTING.md](CONTRIBUTING.md)（英文）。
 
 ## 参与贡献
 
