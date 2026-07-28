@@ -1,5 +1,7 @@
 # claude-desktop-needsremediation-fix
 
+*[English](README.md) | [简体中文](README.zh-CN.md)*
+
 **Diagnose first. Don't uninstall-and-pray.**
 A community toolkit to diagnose and recover Claude Desktop Windows failures
 caused by MSIX/AppX, Code Integrity, WebView2, network proxy, and system
