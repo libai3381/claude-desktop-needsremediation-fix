@@ -30,7 +30,7 @@ can be tracked as a separate case.
 It worked as of Claude Desktop `1.24012.9.0`. It's an undocumented flag, not
 a supported API — Anthropic could change or remove it at any time. Always
 verify the installer's signature first (see the
-[flagship known issue](known-issues/needsremediation-codeintegrity-vk_swiftshader.md#verify-before-you-run-anything)).
+[flagship known issue](known-issues/needsremediation-codeintegrity-vk_swiftshader.md#confirmed-fix)).
 If it stops working, please open an issue so this doc can be updated.
 
 **Why not just tell people to reinstall Windows / disable Code Integrity /

@@ -103,7 +103,7 @@ Installs Claude Desktop in legacy (non-MSIX) mode, bypassing the Code
 Integrity/AppModel path where this specific bug lives. This is an
 **undocumented installer flag** — verify the installer's signature
 (`Anthropic, PBC`) before running it, and see the full writeup for caveats:
-[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md#verify-before-you-run-anything).
+[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md#confirmed-fix).
 
 ## Roadmap
 

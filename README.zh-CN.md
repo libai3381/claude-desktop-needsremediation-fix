@@ -99,7 +99,7 @@ Verdict:
 Code Integrity/AppModel 路径。这是一个**官方安装器未公开文档的参数**——
 使用前请先验证安装器的数字签名（签名者应为 `Anthropic, PBC`），
 更多注意事项见完整记录：
-[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md#verify-before-you-run-anything)（英文）。
+[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md#confirmed-fix)（英文）。
 
 ## 路线图
 

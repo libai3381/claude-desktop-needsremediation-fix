@@ -15,47 +15,26 @@ Integrity Event 3010 / Event 3033.
 
 Claude Desktop installs successfully as an MSIX package and initially reports
 package status `Ok`. The **first time** the app triggers a GPU-accelerated
-render path (this reliably includes opening the login/verification page, and
-is also triggered by the in-app Browser preview), Windows Code Integrity
-blocks the bundled `vk_swiftshader.dll` (SwiftShader, Chromium's software
-Vulkan renderer) from loading. The GPU child process dies, Chromium exhausts
-its fallback paths and terminates the whole app, and Windows then flags the
-**entire MSIX package** as `Modified, NeedsRemediation`. From that point on,
-every launch attempt fails, the built-in "Repair" and "Reset" options in
-Windows Settings do not fix it, and reinstalling the same MSIX reproduces the
-same failure on first launch.
+render path — reliably including the login/verification page, also triggered
+by the in-app Browser preview — the package crashes and Windows flags it
+`Modified, NeedsRemediation`. From that point on every launch fails, and the
+built-in "Repair"/"Reset" options don't fix it.
 
-**Confirmed working fix:** reinstall using the official installer's legacy
-(non-MSIX) mode:
-
-```powershell
-.\ClaudeSetup.exe --exe
-```
-
-This installs Claude Desktop as a traditional desktop app instead of an MSIX
-package, which avoids the Code Integrity / AppModel path where this bug
-lives entirely. It is still the official, signed Anthropic installer and
-program — just not packaged as MSIX.
-
-> **`--exe` is an undocumented installer flag.** It worked as of Claude
-> Desktop 1.24012.9.0 and is independently confirmed in
-> [anthropics/claude-code#81341](https://github.com/anthropics/claude-code/issues/81341),
-> but Anthropic could change or remove it in a future installer build without
-> notice. **Always verify the installer's digital signature (`Anthropic, PBC`)
-> before running it**, regardless of which mode you use — see
-> [Verify before you run anything](#verify-before-you-run-anything) below.
+This document walks through the elimination process that led to the actual
+cause (see [Investigation](#investigation) and [Root cause](#root-cause)) and
+a fix confirmed to work (see [Confirmed fix](#confirmed-fix)).
 
 ---
 
 ## Environment this was observed on
 
-- Windows 11 25H2, Build `26200.8655` (also reproduced on `26200.8875` — see
-  [What did *not* fix it](#what-did-not-fix-it): rolling back the update
-  didn't change the outcome)
+- Windows 11 25H2, Build `26200.8655` (also reproduced on `26200.8875` —
+  rolling back the update didn't change the outcome, see
+  [Investigation](#investigation) step 10)
 - Claude Desktop `1.24012.9.0`, MSIX package family `Claude_pzs8sxrjxfjjc`
 - Reproduced across multiple GPU vendors and multi-GPU laptop/desktop setups
   (see the linked GitHub issues below) — **not** specific to one graphics
-  vendor or virtual display driver.
+  vendor or virtual display driver
 
 Corroborated by multiple independent reporters on the same Windows build
 range — see [Related upstream issues](#related-upstream-issues).
@@ -73,10 +52,73 @@ Get-AppxPackage status   → Modified, NeedsRemediation
 Reinstall same MSIX      → status returns to Ok, then fails identically on next launch
 ```
 
+## Investigation
+
+A signed, cleanly-installed package crashing the same way on first render is
+not explained by any of the usual advice. Each plausible cause was tested in
+turn, in the order below, until the logs pointed at the real one.
+
+1. **Tampered or fake installer?** `Get-AuthenticodeSignature` on both the
+   installer and a freshly-downloaded MSIX returned `Valid`, signed by
+   `Anthropic, PBC`. **Ruled out.**
+
+2. **Corrupted download?** Downloaded the MSIX directly (bypassing
+   `Setup.exe`) and installed it with `Add-AppxPackage` — same crash on first
+   launch. **Ruled out**, and this also clears the installer/bootstrapper
+   itself: a manually verified, directly-installed package fails identically.
+
+3. **Windows system file corruption?** `DISM /Online /Cleanup-Image
+   /RestoreHealth` and `sfc /scannow` both found and repaired real
+   corruption. After a clean reboot, the crash still occurred. A genuine
+   problem — just not this one.
+
+4. **Broken AppX/MSIX deployment framework?** `AppXSvc`, `ClipSVC`, and
+   `StateRepository` all `Running`; `Microsoft.DesktopAppInstaller` reported
+   `Ok`. **Ruled out.**
+
+5. **Missing WebView2?** Evergreen Runtime present, version confirmed via
+   registry — and the login page does render before the crash, which is
+   itself evidence WebView2 isn't the blocker. **Ruled out.**
+
+6. **Cowork VM/HCS not initialized?** Logs showed `Failed to load
+   vmcompute.dll` / `HCS not initialized`, and `VirtualMachinePlatform` was
+   indeed disabled. Enabling it and starting `vmcompute` fixed *that*
+   problem (`HCS ready` confirmed in logs) — but the crash still happened
+   afterward. Real issue, not the cause of this one.
+
+7. **Network/proxy blocking requests?** Traced the Clash/Mihomo proxy
+   tunneling to `api.anthropic.com` end to end; the `403`/`404`/`405`
+   responses seen during testing turned out to be HTTP-method/endpoint
+   artifacts of the test requests themselves, not proxy failures.
+   **Ruled out.**
+
+8. **`hosts` file or environment variable tampering?** No redirection
+   entries for any Anthropic domain, and no `ANTHROPIC_*`/`CLAUDE_*`/proxy
+   environment variables affecting Desktop specifically. **Ruled out.**
+
+9. **GPU driver or virtual display conflict?** Disabling virtual display
+   adapters made no difference, and the same crash reproduces across
+   different GPU vendors in the linked upstream issues. **Ruled out** as
+   vendor- or driver-specific.
+
+10. **One specific Windows Update?** Rolled the build back from
+    `26200.8875` to `26200.8655` — crash persisted. Not a single-KB
+    regression.
+
+None of that explains a signed, uncorrupted package failing the same way
+every time on first GPU render. The next step wasn't another component to
+poke at — it was pulling the Windows Event Logs generated at the exact
+moment of the crash:
+
+11. **Code Integrity logs.** Reproduced the crash, then immediately queried
+    `Microsoft-Windows-CodeIntegrity/Operational` for the surrounding two
+    hours. This is where the actual cause showed up — see
+    [Root cause](#root-cause) below.
+
 ## Root cause
 
-Two Windows Code Integrity events, captured within the two hours around a
-reproduction, tell the whole story:
+Two events from that query explain everything the investigation above
+couldn't:
 
 **Event 3010** (`Microsoft-Windows-CodeIntegrity/Operational`) — Windows
 could not load/resolve the package's `AppxMetadata\CodeIntegrity.cat`
@@ -93,7 +135,7 @@ Guard policy). The DLL **is** validly Authenticode-signed by "Anthropic, PBC"
 MSIX-packaged, CIG-protected process, and with no `CodeIntegrity.cat` catalog
 to fall back to, the load is rejected outright.
 
-The chain from there:
+Put together, the full causal chain:
 
 ```text
 CodeIntegrity.cat missing/unresolvable (Event 3010)
@@ -145,24 +187,36 @@ Get-WinEvent -FilterHashtable @{
 Or just run [`scripts/diagnose.ps1`](../../scripts/diagnose.ps1) — it runs all
 three checks together and tells you directly if this is a match.
 
-## What did *not* fix it
+## Confirmed fix
 
-These were tried, in this order, with real evidence for each — useful so you
-don't repeat the same dead ends:
+```powershell
+.\ClaudeSetup.exe --exe
+```
 
-| Ruled out | Evidence |
-|---|---|
-| Fake/tampered installer | `Get-AuthenticodeSignature` on the installer and a freshly-downloaded MSIX both show `Valid`, signed by Anthropic, PBC |
-| Corrupted download | Directly downloading the MSIX (bypassing `Setup.exe`) and installing via `Add-AppxPackage` reproduces the identical failure |
-| Windows system file corruption | `sfc /scannow` did find and repair unrelated corrupted files; the crash still occurred after the repair, on a clean reboot |
-| Broken AppX deployment framework | `AppXSvc`, `ClipSVC`, `StateRepository` all `Running`; `Microsoft.DesktopAppInstaller` status `Ok` |
-| Missing WebView2 | WebView2 Evergreen Runtime present, version confirmed via registry; the login page does render before the crash |
-| Cowork VM / HCS not initialized | `VirtualMachinePlatform` was indeed disabled and `vmcompute` not running; enabling both and confirming `HCS ready` in logs did not stop the crash |
-| Network proxy blocking requests | Proxy (Clash/Mihomo) correctly tunnels HTTPS to `api.anthropic.com`; unrelated `403`/`404`/`405` responses during testing were HTTP-method/endpoint artifacts, not proxy failures |
-| `hosts` file tampering | No redirection entries for `claude.ai`, `downloads.claude.ai`, or `api.anthropic.com` |
-| Environment variable interference | No `ANTHROPIC_*`/`CLAUDE_*`/`HTTP(S)_PROXY` values that would affect Desktop; a separate Claude Code CLI proxy config exists but is an unrelated tool/process |
-| GPU driver / virtual display conflict | Disabling virtual display adapters made no difference; multiple different GPU vendors reproduce the same failure in the linked upstream issues |
-| One specific Windows Update (`KB5101650`) | Rolling the build back from `26200.8875` to `26200.8655` did not resolve it — this is not a single-KB regression |
+Reinstall using the official installer's legacy (non-MSIX) mode. This
+installs Claude Desktop as a traditional desktop app instead of an MSIX
+package, avoiding the Code Integrity/AppModel path where this bug lives
+entirely. It's still the official, signed Anthropic installer and program —
+just not packaged as MSIX.
+
+> **`--exe` is an undocumented installer flag.** It worked as of Claude
+> Desktop 1.24012.9.0 and is independently confirmed in
+> [anthropics/claude-code#81341](https://github.com/anthropics/claude-code/issues/81341),
+> but Anthropic could change or remove it in a future installer build without
+> notice.
+
+Before running it — or any installer from this page or elsewhere — verify
+the signature:
+
+```powershell
+Get-AuthenticodeSignature ".\ClaudeSetup.exe" | Select-Object Status, SignerCertificate
+# Expect: Status = Valid, Signer = Anthropic, PBC
+```
+
+Only official download sources: `claude.com/download`, `claude.ai/download`,
+and Anthropic's API redirect endpoints under `api.anthropic.com`. This
+repository does not host or mirror the installer — see
+[DISCLAIMER.md](../../DISCLAIMER.md).
 
 ## What to avoid trying
 
@@ -195,20 +249,6 @@ If Anthropic ships a fix (a signed `vk_swiftshader.dll` at the right signing
 level, or a proper `CodeIntegrity.cat` in the package), this document should
 be updated to note the fixed version — please open a PR or issue if you
 observe that.
-
-## Verify before you run anything
-
-Before running *any* installer from this page or elsewhere:
-
-```powershell
-Get-AuthenticodeSignature ".\ClaudeSetup.exe" | Select-Object Status, SignerCertificate
-# Expect: Status = Valid, Signer = Anthropic, PBC
-```
-
-Only official download sources are: `claude.com/download`,
-`claude.ai/download`, and Anthropic's API redirect endpoints under
-`api.anthropic.com`. This repository does not host or mirror the installer —
-see [DISCLAIMER.md](../../DISCLAIMER.md).
 
 ## Contribute your own data point
 
