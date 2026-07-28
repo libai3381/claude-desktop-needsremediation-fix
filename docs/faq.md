@@ -1,5 +1,11 @@
 # FAQ
 
+Looking for a fix, not background reading? Run
+[`scripts/diagnose.ps1`](../scripts/diagnose.ps1) first — if it matches your
+case to the [flagship known issue](known-issues/needsremediation-codeintegrity-vk_swiftshader.md),
+you don't need anything below. This page covers what that doesn't: trust,
+safety, and edge cases.
+
 **Is this an official Anthropic project?**
 No. See [DISCLAIMER.md](../DISCLAIMER.md). It's community-maintained, started
 from one user's own troubleshooting case.

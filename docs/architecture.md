@@ -1,5 +1,11 @@
 # Why Claude Desktop breaks on Windows: an explainer
 
+**Read this if:** `diagnose.ps1` didn't match your case to a documented known
+issue, and you want to understand which Windows subsystem is likely
+involved before digging further. If you already know your symptom matches a
+[known issue](known-issues/), skip straight there — this page is background,
+not a fix.
+
 Claude Desktop on Windows is distributed exclusively as an **MSIX/AppX**
 package (there is no plain `.exe` installer path in the current build, aside
 from the undocumented legacy fallback described in the
