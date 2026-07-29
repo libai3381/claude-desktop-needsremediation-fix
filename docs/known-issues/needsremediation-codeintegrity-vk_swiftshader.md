@@ -1,8 +1,6 @@
 # Claude Desktop MSIX: `Modified, NeedsRemediation` after first launch (CodeIntegrity blocks `vk_swiftshader.dll`)
 
-**Status:** Confirmed, reproducible. Root cause traced to Windows Code Integrity
-rejecting a bundled DLL in the MSIX package. Workaround confirmed working.
-Not yet fixed upstream as of this writing.
+**Status:** Confirmed, reproducible. Not yet fixed upstream as of this writing.
 
 **Search terms this covers:** Claude Desktop 打不开 / 修复失败 / 重置失败 /
 "Claude needs repair" / "Claude Desktop won't launch after update" / MSIX
@@ -11,26 +9,31 @@ Integrity Event 3010 / Event 3033.
 
 ---
 
-## Summary
+## TL;DR
 
-Claude Desktop installs successfully as an MSIX package and initially reports
-package status `Ok`. The **first time** the app triggers a GPU-accelerated
-render path — reliably including the login/verification page, also triggered
-by the in-app Browser preview — the package crashes and Windows flags it
-`Modified, NeedsRemediation`. From that point on every launch fails, and the
-built-in "Repair"/"Reset" options don't fix it.
-
-This document walks through the elimination process that led to the actual
-cause (see [Investigation](#investigation) and [Root cause](#root-cause)) and
-a fix confirmed to work (see [Confirmed fix](#confirmed-fix)).
+- **Symptom:** Claude Desktop installs fine, then crashes the first time it
+  renders a page (login screen or in-app Browser), and Windows permanently
+  blocks it from launching again.
+- **Root cause:** Windows Code Integrity blocks a DLL bundled in Claude's
+  MSIX package (`vk_swiftshader.dll`) because the package ships without a
+  usable integrity catalog. See [Root cause](#root-cause) for the log
+  evidence.
+- **Fix:** reinstall using the installer's legacy non-MSIX mode:
+  `.\ClaudeSetup.exe --exe`. See [Confirmed fix](#confirmed-fix) — verify the
+  installer's signature before running it.
+- **Not sure this is your case?** See
+  [How to check if this is your issue](#how-to-check-if-this-is-your-issue).
+- **Want the full reasoning, not just the answer?** See
+  [Investigation](#investigation) for every cause that was tested and ruled
+  out first.
 
 ---
 
 ## Environment this was observed on
 
 - Windows 11 25H2, Build `26200.8655` (also reproduced on `26200.8875` —
-  rolling back the update didn't change the outcome, see
-  [Investigation](#investigation) step 10)
+  rolling back the update didn't change the outcome, see row 10 in
+  [Investigation](#investigation))
 - Claude Desktop `1.24012.9.0`, MSIX package family `Claude_pzs8sxrjxfjjc`
 - Reproduced across multiple GPU vendors and multi-GPU laptop/desktop setups
   (see the linked GitHub issues below) — **not** specific to one graphics
@@ -54,71 +57,28 @@ Reinstall same MSIX      → status returns to Ok, then fails identically on nex
 
 ## Investigation
 
-A signed, cleanly-installed package crashing the same way on first render is
-not explained by any of the usual advice. Each plausible cause was tested in
-turn, in the order below, until the logs pointed at the real one.
+A signed, cleanly-installed package crashing the same way every time on
+first render doesn't match any of the usual explanations. Each plausible
+cause was tested, in this order, until the logs pointed at the real one:
 
-1. **Tampered or fake installer?** `Get-AuthenticodeSignature` on both the
-   installer and a freshly-downloaded MSIX returned `Valid`, signed by
-   `Anthropic, PBC`. **Ruled out.**
-
-2. **Corrupted download?** Downloaded the MSIX directly (bypassing
-   `Setup.exe`) and installed it with `Add-AppxPackage` — same crash on first
-   launch. **Ruled out**, and this also clears the installer/bootstrapper
-   itself: a manually verified, directly-installed package fails identically.
-
-3. **Windows system file corruption?** `DISM /Online /Cleanup-Image
-   /RestoreHealth` and `sfc /scannow` both found and repaired real
-   corruption. After a clean reboot, the crash still occurred. A genuine
-   problem — just not this one.
-
-4. **Broken AppX/MSIX deployment framework?** `AppXSvc`, `ClipSVC`, and
-   `StateRepository` all `Running`; `Microsoft.DesktopAppInstaller` reported
-   `Ok`. **Ruled out.**
-
-5. **Missing WebView2?** Evergreen Runtime present, version confirmed via
-   registry — and the login page does render before the crash, which is
-   itself evidence WebView2 isn't the blocker. **Ruled out.**
-
-6. **Cowork VM/HCS not initialized?** Logs showed `Failed to load
-   vmcompute.dll` / `HCS not initialized`, and `VirtualMachinePlatform` was
-   indeed disabled. Enabling it and starting `vmcompute` fixed *that*
-   problem (`HCS ready` confirmed in logs) — but the crash still happened
-   afterward. Real issue, not the cause of this one.
-
-7. **Network/proxy blocking requests?** Traced the Clash/Mihomo proxy
-   tunneling to `api.anthropic.com` end to end; the `403`/`404`/`405`
-   responses seen during testing turned out to be HTTP-method/endpoint
-   artifacts of the test requests themselves, not proxy failures.
-   **Ruled out.**
-
-8. **`hosts` file or environment variable tampering?** No redirection
-   entries for any Anthropic domain, and no `ANTHROPIC_*`/`CLAUDE_*`/proxy
-   environment variables affecting Desktop specifically. **Ruled out.**
-
-9. **GPU driver or virtual display conflict?** Disabling virtual display
-   adapters made no difference, and the same crash reproduces across
-   different GPU vendors in the linked upstream issues. **Ruled out** as
-   vendor- or driver-specific.
-
-10. **One specific Windows Update?** Rolled the build back from
-    `26200.8875` to `26200.8655` — crash persisted. Not a single-KB
-    regression.
-
-None of that explains a signed, uncorrupted package failing the same way
-every time on first GPU render. The next step wasn't another component to
-poke at — it was pulling the Windows Event Logs generated at the exact
-moment of the crash:
-
-11. **Code Integrity logs.** Reproduced the crash, then immediately queried
-    `Microsoft-Windows-CodeIntegrity/Operational` for the surrounding two
-    hours. This is where the actual cause showed up — see
-    [Root cause](#root-cause) below.
+| # | Checked | How | Result |
+|---|---|---|---|
+| 1 | Tampered/fake installer | `Get-AuthenticodeSignature` on the installer and a freshly-downloaded MSIX | Both `Valid`, signed by `Anthropic, PBC` → **ruled out** |
+| 2 | Corrupted download | Downloaded the MSIX directly (bypassing `Setup.exe`), installed via `Add-AppxPackage` | Same crash on first launch → **ruled out** (also clears the installer/bootstrapper itself) |
+| 3 | Windows system file corruption | `DISM /Online /Cleanup-Image /RestoreHealth`, then `sfc /scannow` | Real corruption found and repaired; crash still occurred after a clean reboot → real problem, **not this one** |
+| 4 | Broken AppX/MSIX deployment framework | Checked `AppXSvc`, `ClipSVC`, `StateRepository`, `Microsoft.DesktopAppInstaller` | All healthy / `Ok` → **ruled out** |
+| 5 | Missing WebView2 | Checked Evergreen Runtime version in registry; observed the login page actually rendering | Present and working; page renders before the crash → **ruled out** |
+| 6 | Cowork VM/HCS not initialized | Enabled `VirtualMachinePlatform`, started `vmcompute` (logs showed `HCS not initialized` beforehand) | Fixed a real problem (`HCS ready` confirmed in logs); crash still happened afterward → real issue, **not this one** |
+| 7 | Network proxy blocking requests | Traced the Clash/Mihomo tunnel to `api.anthropic.com` end to end | Proxy working correctly; the `403`/`404`/`405` seen during testing were HTTP-method/endpoint artifacts, not proxy failures → **ruled out** |
+| 8 | `hosts` file / environment variable tampering | Checked for Anthropic-domain redirects and `ANTHROPIC_*`/`CLAUDE_*`/proxy env vars | Clean → **ruled out** |
+| 9 | GPU driver / virtual display conflict | Disabled virtual display adapters; compared across GPU vendors | No change; reproduces across different GPU vendors in the linked upstream issues → **ruled out** |
+| 10 | One specific Windows Update | Rolled the build back from `26200.8875` to `26200.8655` | Crash persisted → not a single-KB regression |
+| 11 | **Code Integrity event logs** | Reproduced the crash, then immediately queried `Microsoft-Windows-CodeIntegrity/Operational` for the surrounding two hours | **This is where the actual cause showed up** → see [Root cause](#root-cause) |
 
 ## Root cause
 
-Two events from that query explain everything the investigation above
-couldn't:
+Two events from that query (row 11 above) explain everything the rest of
+the investigation couldn't:
 
 **Event 3010** (`Microsoft-Windows-CodeIntegrity/Operational`) — Windows
 could not load/resolve the package's `AppxMetadata\CodeIntegrity.cat`
