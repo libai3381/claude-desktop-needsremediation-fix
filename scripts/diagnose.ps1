@@ -53,6 +53,8 @@ Write-Verbose "Running elevated: $isElevated"
 
 # --- Tier A: high-confidence checks from the verified NeedsRemediation/CodeIntegrity case ---
 
+# -AllUsers needs elevation and throws if we don't have it; fall back to the
+# current-user-only query so this still works when run unelevated.
 $claudePkg = $null
 try {
     $claudePkg = Get-AppxPackage -AllUsers -Name 'Claude*' -ErrorAction Stop | Select-Object -First 1
@@ -96,6 +98,9 @@ try {
     $ci3010 = $ciEvents | Where-Object { $_.Id -eq 3010 } | Select-Object -First 1
     $ci3033 = $ciEvents | Where-Object { $_.Id -eq 3033 } | Select-Object -First 1
 } catch [Exception] {
+    # Get-WinEvent throws when a query matches zero events - that's the
+    # expected, healthy case here (no crash reproduced recently), not a
+    # failure. Only surface anything else (e.g. the log itself missing).
     if ($_.Exception -is [System.Diagnostics.Eventing.Reader.EventLogNotFoundException] -or
         $_.CategoryInfo.Category -eq 'ObjectNotFound') {
         # No matching events in the window - not an error, just nothing found.
@@ -203,6 +208,9 @@ try {
 try {
     $wininet = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
     $wininetEnabled = $wininet.ProxyEnable -eq 1
+    # netsh has no structured output mode here, so this parses its text
+    # output for the literal phrase Windows prints when WinHTTP has no
+    # proxy configured.
     $winhttp = (netsh winhttp show proxy) -join ' '
     $winhttpDirect = $winhttp -match 'Direct access'
     if ($wininetEnabled -and $winhttpDirect) {
