@@ -2,7 +2,7 @@
 
 *[English](README.md) | [简体中文](README.zh-CN.md)*
 
-**先诊断，再修复。不要"重装了就祈祷"。**
+**先诊断，再修复。不要"重装再祈祷"。**
 一个开源工具，帮助你诊断并修复 Claude Desktop 在 Windows 上因 MSIX/AppX、
 Code Integrity、WebView2、网络代理等环境兼容问题导致的更新失败、启动异常等故障。
 
