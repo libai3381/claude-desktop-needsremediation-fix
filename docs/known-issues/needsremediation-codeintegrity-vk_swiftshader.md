@@ -9,91 +9,32 @@ Integrity Event 3010 / Event 3033.
 
 ---
 
-## TL;DR
-
-- **Symptom:** Claude Desktop installs fine, then crashes the first time it
-  renders a page (login screen or in-app Browser), and Windows permanently
-  blocks it from launching again.
-- **Root cause:** Windows Code Integrity blocks a DLL bundled in Claude's
-  MSIX package (`vk_swiftshader.dll`) because the package ships without a
-  usable integrity catalog. See [Root cause](#root-cause) for the log
-  evidence.
-- **Fix:** reinstall using the installer's legacy non-MSIX mode:
-  `.\ClaudeSetup.exe --exe`. See [Confirmed fix](#confirmed-fix) — verify the
-  installer's signature before running it.
-- **Not sure this is your case?** See
-  [How to check if this is your issue](#how-to-check-if-this-is-your-issue).
-- **Want the full reasoning, not just the answer?** See
-  [Investigation](#investigation) for every cause that was tested and ruled
-  out first.
-
----
-
-## Environment this was observed on
-
-- Windows 11 25H2, Build `26200.8655` (also reproduced on `26200.8875` —
-  rolling back the update didn't change the outcome, see row 10 in
-  [Investigation](#investigation))
-- Claude Desktop `1.24012.9.0`, MSIX package family `Claude_pzs8sxrjxfjjc`
-- Reproduced across multiple GPU vendors and multi-GPU laptop/desktop setups
-  (see the linked GitHub issues below) — **not** specific to one graphics
-  vendor or virtual display driver
-
-Corroborated by multiple independent reporters on the same Windows build
-range — see [Related upstream issues](#related-upstream-issues).
-
-## Symptom timeline
-
-```text
-Package installed        → Get-AppxPackage status: Ok
-Click Claude icon        → window opens
-Login / verification page → shows briefly
-Window disappears        → Windows: "This app needs to be repaired"
-Get-AppxPackage status   → Modified, NeedsRemediation
-"Repair" in Settings     → fails / no effect
-"Reset" in Settings      → fails / no effect
-Reinstall same MSIX      → status returns to Ok, then fails identically on next launch
-```
-
-## Investigation
-
-A signed, cleanly-installed package crashing the same way every time on
-first render doesn't match any of the usual explanations. Each plausible
-cause was tested, in this order, until the logs pointed at the real one:
-
-| # | Checked | How | Result |
-|---|---|---|---|
-| 1 | Tampered/fake installer | `Get-AuthenticodeSignature` on the installer and a freshly-downloaded MSIX | Both `Valid`, signed by `Anthropic, PBC` → **ruled out** |
-| 2 | Corrupted download | Downloaded the MSIX directly (bypassing `Setup.exe`), installed via `Add-AppxPackage` | Same crash on first launch → **ruled out** (also clears the installer/bootstrapper itself) |
-| 3 | Windows system file corruption | `DISM /Online /Cleanup-Image /RestoreHealth`, then `sfc /scannow` | Real corruption found and repaired; crash still occurred after a clean reboot → real problem, **not this one** |
-| 4 | Broken AppX/MSIX deployment framework | Checked `AppXSvc`, `ClipSVC`, `StateRepository`, `Microsoft.DesktopAppInstaller` | All healthy / `Ok` → **ruled out** |
-| 5 | Missing WebView2 | Checked Evergreen Runtime version in registry; observed the login page actually rendering | Present and working; page renders before the crash → **ruled out** |
-| 6 | Cowork VM/HCS not initialized | Enabled `VirtualMachinePlatform`, started `vmcompute` (logs showed `HCS not initialized` beforehand) | Fixed a real problem (`HCS ready` confirmed in logs); crash still happened afterward → real issue, **not this one** |
-| 7 | Network proxy blocking requests | Traced the Clash/Mihomo tunnel to `api.anthropic.com` end to end | Proxy working correctly; the `403`/`404`/`405` seen during testing were HTTP-method/endpoint artifacts, not proxy failures → **ruled out** |
-| 8 | `hosts` file / environment variable tampering | Checked for Anthropic-domain redirects and `ANTHROPIC_*`/`CLAUDE_*`/proxy env vars | Clean → **ruled out** |
-| 9 | GPU driver / virtual display conflict | Disabled virtual display adapters; compared across GPU vendors | No change; reproduces across different GPU vendors in the linked upstream issues → **ruled out** |
-| 10 | One specific Windows Update | Rolled the build back from `26200.8875` to `26200.8655` | Crash persisted → not a single-KB regression |
-| 11 | **Code Integrity event logs** | Reproduced the crash, then immediately queried `Microsoft-Windows-CodeIntegrity/Operational` for the surrounding two hours | **This is where the actual cause showed up** → see [Root cause](#root-cause) |
-
 ## Root cause
 
-Two events from that query (row 11 above) explain everything the rest of
-the investigation couldn't:
+Claude Desktop's MSIX package ships `vk_swiftshader.dll` (SwiftShader,
+Chromium's software Vulkan renderer) without a usable
+`AppxMetadata\CodeIntegrity.cat` catalog. The first time the app renders a
+GPU-accelerated page — the login/verification screen, or the in-app Browser
+preview — Windows Code Integrity has no catalog to validate that DLL against,
+rejects it outright, and kills the GPU process. Chromium then fatally
+terminates the whole app, and Windows permanently flags the package
+`Modified, NeedsRemediation`. A confirmed fix exists that avoids this path
+entirely — see [Confirmed fix](#confirmed-fix).
 
-**Event 3010** (`Microsoft-Windows-CodeIntegrity/Operational`) — Windows
-could not load/resolve the package's `AppxMetadata\CodeIntegrity.cat`
-catalog file, status `0xC000003A`. The MSIX package does not ship this
-catalog (or Windows cannot resolve it), so there is no fallback path for
-validating bundled binaries against the package's own integrity catalog.
+The log evidence, from `Microsoft-Windows-CodeIntegrity/Operational`,
+captured immediately after reproducing the crash:
 
-**Event 3033** (`Microsoft-Windows-CodeIntegrity/Operational`) — Windows
-determined that `vk_swiftshader.dll`, loaded by Claude's GPU child process,
-does not meet the Microsoft signing-level requirement enforced on that
-process (the GPU process runs under a Microsoft-signed-only Code Integrity
-Guard policy). The DLL **is** validly Authenticode-signed by "Anthropic, PBC"
-— but that is not the signing level Windows requires for this specific
-MSIX-packaged, CIG-protected process, and with no `CodeIntegrity.cat` catalog
-to fall back to, the load is rejected outright.
+**Event 3010** — Windows could not load/resolve
+`AppxMetadata\CodeIntegrity.cat`, status `0xC000003A`. Without this catalog
+there is no fallback path for validating the package's bundled binaries.
+
+**Event 3033** — Windows determined that `vk_swiftshader.dll`, loaded by
+Claude's GPU child process, does not meet the Microsoft signing-level
+requirement enforced on that process (the GPU process runs under a
+Microsoft-signed-only Code Integrity Guard policy). The DLL **is** validly
+Authenticode-signed by "Anthropic, PBC" — but that's not the signing level
+this specific MSIX-packaged, CIG-protected process requires, and with no
+`CodeIntegrity.cat` to fall back to, the load is rejected outright.
 
 Put together, the full causal chain:
 
@@ -120,6 +61,58 @@ Windows Code Integrity interaction, not an Anthropic-specific defect. Any
 Electron app shipping an unsigned-at-the-right-level `vk_swiftshader.dll`
 inside an MSIX with CIG enabled on its GPU process is a plausible candidate
 for the same failure mode.
+
+---
+
+## Environment this was observed on
+
+- Windows 11 25H2, Build `26200.8655` (also reproduced on `26200.8875`)
+- Claude Desktop `1.24012.9.0`, MSIX package family `Claude_pzs8sxrjxfjjc`
+- Reproduced across multiple GPU vendors and multi-GPU laptop/desktop setups
+  (see the linked GitHub issues below) — **not** specific to one graphics
+  vendor or virtual display driver
+
+Corroborated by multiple independent reporters on the same Windows build
+range — see [Related upstream issues](#related-upstream-issues).
+
+## What you'll see
+
+### At startup
+
+```text
+Package installed        → Get-AppxPackage status: Ok
+Click Claude icon        → window opens
+Login / verification page → shows briefly
+Window disappears        → Windows: "This app needs to be repaired"
+Get-AppxPackage status   → Modified, NeedsRemediation
+"Repair" in Settings     → fails / no effect
+"Reset" in Settings      → fails / no effect
+Reinstall same MSIX      → status returns to Ok, then fails identically on next launch
+```
+
+### While troubleshooting
+
+If you go looking for the cause yourself before finding this page, here's
+what you'll likely run into — in the order it happened during the original
+investigation:
+
+| Suspected cause | What was tried | What happened |
+|---|---|---|
+| Tampered/fake installer | `Get-AuthenticodeSignature` on the installer and a freshly-downloaded MSIX | Both `Valid`, signed by `Anthropic, PBC` — not this |
+| Corrupted download | Downloaded the MSIX directly (bypassing `Setup.exe`), installed via `Add-AppxPackage` | Same crash on first launch — the installer/bootstrapper isn't the problem either |
+| Windows system file corruption | `DISM /Online /Cleanup-Image /RestoreHealth`, then `sfc /scannow` | Real corruption found and repaired; crash still occurred after a clean reboot — a genuine issue, but not this one |
+| Broken AppX/MSIX deployment framework | Checked `AppXSvc`, `ClipSVC`, `StateRepository`, `Microsoft.DesktopAppInstaller` | All healthy / `Ok` |
+| Missing WebView2 | Checked Evergreen Runtime version in registry; watched the login page actually render | Present and working — the page renders before the crash, so WebView2 isn't the blocker |
+| Cowork VM/HCS not initialized | Enabled `VirtualMachinePlatform`, started `vmcompute` (logs had shown `HCS not initialized`) | Fixed a real problem (`HCS ready` confirmed in logs) — but the crash still happened afterward |
+| Network proxy blocking requests | Traced the Clash/Mihomo tunnel to `api.anthropic.com` end to end | Proxy working correctly; the `403`/`404`/`405` seen during testing were HTTP-method/endpoint artifacts, not proxy failures |
+| `hosts` file / environment variable tampering | Checked for Anthropic-domain redirects and `ANTHROPIC_*`/`CLAUDE_*`/proxy env vars | Clean |
+| GPU driver / virtual display conflict | Disabled virtual display adapters; compared across GPU vendors | No change — and the same crash reproduces across different GPU vendors in the linked upstream issues |
+| One specific Windows Update | Rolled the build back from `26200.8875` to `26200.8655` | Crash persisted — not a single-KB regression |
+| **Code Integrity event logs** | Reproduced the crash, then immediately queried `Microsoft-Windows-CodeIntegrity/Operational` for the surrounding two hours | **This is what actually explained it** — see [Root cause](#root-cause) above |
+
+None of the individual fixes above were wasted effort — several fixed real,
+separate problems (system file corruption, HCS/VM setup) — they just weren't
+*this* problem.
 
 ## How to check if this is your issue
 
