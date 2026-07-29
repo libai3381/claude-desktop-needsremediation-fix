@@ -34,6 +34,12 @@ MSIX 软件包自带的一个 DLL（`vk_swiftshader.dll`），因为该软件包
 （签名者应为 `Anthropic, PBC`）。完整日志证据和注意事项见：
 [docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md)（英文）。
 
+不想手动操作？[`scripts/fix-needsremediation.ps1`](scripts/fix-needsremediation.ps1)
+把上面这几步自动化了——检测、确认、下载、验证签名、执行，如果你的情况不是
+一个确认匹配的案例，它会直接拒绝往下走。它不会开启开发者模式，也不会绕过
+MSIX 签名校验。具体做了什么、不会做什么，见
+[scripts/README.md](scripts/README.md#fix-needsremediationps1)（英文）。
+
 **你遇到的是不是这种情况？**
 
 - 更新后无法启动
@@ -103,7 +109,9 @@ Verdict:
 ## 路线图
 
 - [x] **第一阶段** — README、已知问题文档、只读的 `diagnose.ps1`
-- [ ] **第二阶段** — 分级自动修复脚本（`fix.ps1`），默认 dry-run，只执行安全操作
+- [~] **第二阶段** — 自动修复。`fix-needsremediation.ps1` 已经覆盖了上面这个
+  确认过的案例（检测 → 确认 → 验证签名 → 执行）。覆盖 B 级检查项的、更全面的
+  分级修复脚本 `fix.ps1` 还没做。
 - [ ] **第三阶段** — 社区共建的已知问题数据库，通过 issue 模板结构化提交
 
 本项目刻意先只发布"纯只读"的第一阶段，之后才会碰任何会修改系统状态的功能。

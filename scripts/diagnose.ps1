@@ -257,12 +257,18 @@ try {
 
 # --- Verdict ---
 
+# Confidence is the machine-readable gate other scripts (e.g.
+# fix-needsremediation.ps1) key off of. Keep it in sync with $verdict's
+# prose below rather than parsing the prose - the string is for humans.
+$confidence = 'none'
 $verdict = 'No specific match found. Review the checks above; see docs/faq.md and docs/error-codes.md.'
 if ($packageNeedsRemediation -and ($ci3010 -or $ci3033) -and $appModelEvent6) {
+    $confidence = 'high'
     $verdict = 'HIGH CONFIDENCE MATCH: this looks like the CodeIntegrity/vk_swiftshader.dll NeedsRemediation case. ' +
         'Confirmed fix: reinstall using ".\ClaudeSetup.exe --exe" (verify signature first). ' +
         'Details: docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md'
 } elseif ($packageNeedsRemediation) {
+    $confidence = 'partial'
     $verdict = 'Package is Modified/NeedsRemediation, but the specific CodeIntegrity 3010/3033 or AppModel event 6 signature was not found in the last 2 hours. ' +
         'Try reproducing the crash, then re-run this script immediately. See docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md for what to look for.'
 }
@@ -273,6 +279,7 @@ if ($Json) {
     [PSCustomObject]@{
         GeneratedAt = (Get-Date).ToString('o')
         Elevated    = $isElevated
+        Confidence  = $confidence
         Verdict     = $verdict
         Results     = $results
     } | ConvertTo-Json -Depth 5

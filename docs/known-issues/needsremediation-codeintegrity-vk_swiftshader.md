@@ -171,6 +171,13 @@ and Anthropic's API redirect endpoints under `api.anthropic.com`. This
 repository does not host or mirror the installer — see
 [DISCLAIMER.md](../../DISCLAIMER.md).
 
+**Automated option:** [`scripts/fix-needsremediation.ps1`](../../scripts/fix-needsremediation.ps1)
+does exactly the above — detects a confirmed match, then (only with `-Apply`
+and your explicit confirmation) downloads the installer from the same
+official endpoint, runs the same signature check, and refuses to proceed if
+it fails. See [scripts/README.md](../../scripts/README.md#fix-needsremediationps1)
+for the full permissions/impact breakdown.
+
 ## What to avoid trying
 
 - **Reinstalling Windows.** It's tempting once you've ruled out this many

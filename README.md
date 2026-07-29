@@ -36,6 +36,14 @@ path entirely. It's an undocumented installer flag — verify the installer's
 signature (`Anthropic, PBC`) before running it. Full log evidence and
 caveats: [docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md).
 
+Prefer not to do this by hand?
+[`scripts/fix-needsremediation.ps1`](scripts/fix-needsremediation.ps1) automates
+exactly these steps — detect, confirm, download, verify signature, apply —
+and refuses to do anything if your case isn't a confirmed match. It never
+enables Developer Mode or bypasses MSIX signature checks. See
+[scripts/README.md](scripts/README.md#fix-needsremediationps1) for exactly
+what it does and doesn't touch.
+
 **Does this match what you're seeing?**
 
 - Won't launch after an update
@@ -107,7 +115,9 @@ Full reference: [docs/error-codes.md](docs/error-codes.md) ·
 ## Roadmap
 
 - [x] **Phase 1** — README, known-issues docs, read-only `diagnose.ps1`
-- [ ] **Phase 2** — tiered auto-fix script (`fix.ps1`), dry-run by default, safe actions only
+- [~] **Phase 2** — auto-fix. `fix-needsremediation.ps1` covers the one
+  confirmed case above (detect → confirm → verify signature → apply). A
+  broader tiered `fix.ps1` for the Tier B checks is still open.
 - [ ] **Phase 3** — community-sourced known-issues database, structured submissions via issue templates
 
 This project deliberately shipped a strictly read-only Phase 1 before
