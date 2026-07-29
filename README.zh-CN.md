@@ -2,9 +2,9 @@
 
 *[English](README.md) | [简体中文](README.zh-CN.md)*
 
-**先诊断，再修复。不要"卸载—重装—祈祷"。**
-一个开源工具，帮助你诊断和修复 Claude Desktop 在 Windows 上的更新失败、启动异常、
-以及 MSIX/AppX、Code Integrity、WebView2、网络代理等环境兼容问题。
+**先诊断，再修复。不要"重装了就祈祷"。**
+一个开源工具，帮助你诊断并修复 Claude Desktop 在 Windows 上因 MSIX/AppX、
+Code Integrity、WebView2、网络代理等环境兼容问题导致的更新失败、启动异常等故障。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE)
@@ -43,8 +43,8 @@ MSIX 软件包自带的一个 DLL（`vk_swiftshader.dll`），因为该软件包
 
 如果是，往下运行 `diagnose.ps1` 确认一下，然后直接用上面的修复方法。
 如果你的症状不太一样（代理报错、WebView2 问题、Cowork/虚拟化相关问题），
-下面更全面的检查项也覆盖了这些——"重装、清缓存、重启电脑"不会告诉你到底
-是哪一环坏了，但这个工具会。
+下面更全面的检查项也覆盖了这些。"重装、清缓存、重启电脑"这类通用建议
+不会告诉你到底是哪一环坏了，但这个工具会。
 
 ## 快速开始
 
@@ -85,7 +85,7 @@ Verdict:
 
 ## 检查项一览
 
-| 层级 | 检查项 | 用于捕获 |
+| 层级 | 检查项 | 捕获的问题 |
 |---|---|---|
 | A | Claude 软件包状态 | `Modified`/`NeedsRemediation` 状态 |
 | A | Code Integrity 事件 3010 / 3033 | `CodeIntegrity.cat` 缺失、DLL 签名级别不满足 |

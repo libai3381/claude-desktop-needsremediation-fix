@@ -2,7 +2,7 @@
 
 *[English](README.md) | [简体中文](README.zh-CN.md)*
 
-**Diagnose first. Don't uninstall-and-pray.**
+**Diagnose first. Don't reinstall-and-pray.**
 A community toolkit to diagnose and recover Claude Desktop Windows failures
 caused by MSIX/AppX, Code Integrity, WebView2, network proxy, and system
 compatibility issues.
@@ -45,8 +45,9 @@ caveats: [docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](do
 
 If yes, run `diagnose.ps1` below to confirm, then use the fix above. If your
 symptoms are different — proxy errors, WebView2 issues, Cowork/virtualization
-problems — the broader checks below cover those too; "reinstall, clear
-cache, reboot" doesn't tell you which layer actually failed, but this does.
+problems — the broader checks below cover those too. Generic advice
+("reinstall, clear cache, reboot") doesn't tell you which layer actually
+failed; this does.
 
 ## Quickstart
 
@@ -109,9 +110,9 @@ Full reference: [docs/error-codes.md](docs/error-codes.md) ·
 - [ ] **Phase 2** — tiered auto-fix script (`fix.ps1`), dry-run by default, safe actions only
 - [ ] **Phase 3** — community-sourced known-issues database, structured submissions via issue templates
 
-This project deliberately shipped Phase 1 — read-only only — before touching
-anything that modifies your system. See [CONTRIBUTING.md](CONTRIBUTING.md) if
-you want to help design Phase 2 safely.
+This project deliberately shipped a strictly read-only Phase 1 before
+touching anything that modifies your system. See
+[CONTRIBUTING.md](CONTRIBUTING.md) if you want to help design Phase 2 safely.
 
 ## Contributing
 
