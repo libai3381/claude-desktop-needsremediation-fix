@@ -17,26 +17,36 @@ compatibility issues.
 > and "Claude Desktop" are Anthropic's trademarks, referenced here only to
 > describe compatibility. See [DISCLAIMER.md](DISCLAIMER.md).
 
-## The problem
+## The flagship case
 
-Claude Desktop breaks in ways generic advice can't fix:
+**Root cause:** Windows Code Integrity blocks a DLL bundled in Claude
+Desktop's MSIX package (`vk_swiftshader.dll`), because the package ships
+without a usable integrity catalog. The app crashes the first time it
+renders a page, and Windows permanently flags it `Modified,
+NeedsRemediation`.
+
+**Confirmed fix:**
+
+```powershell
+.\ClaudeSetup.exe --exe
+```
+
+Reinstalls Claude Desktop in legacy (non-MSIX) mode, bypassing the broken
+path entirely. It's an undocumented installer flag — verify the installer's
+signature (`Anthropic, PBC`) before running it. Full log evidence and
+caveats: [docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md).
+
+**Does this match what you're seeing?**
 
 - Won't launch after an update
 - Clicking the icon does nothing
 - Login page flashes, then the window disappears
 - Windows says the app "needs to be repaired" — and repair itself fails
 
-The cause could be MSIX/AppX packaging, Windows Code Integrity, WebView2,
-your proxy setup, or (if you use Cowork) Hyper-V/HCS — each can break
-independently. "Reinstall, clear cache, reboot" doesn't tell you which one
-actually failed.
-
-**The case that started this project:** a fully-reproduced trace of Claude
-Desktop's MSIX package silently flipping to `Modified, NeedsRemediation`
-after first launch, root-caused to Windows Code Integrity blocking a bundled
-DLL, cross-checked against four independently-filed upstream bug reports,
-with a confirmed working fix. Read the full writeup:
-[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md).
+If yes, run `diagnose.ps1` below to confirm, then use the fix above. If your
+symptoms are different — proxy errors, WebView2 issues, Cowork/virtualization
+problems — the broader checks below cover those too; "reinstall, clear
+cache, reboot" doesn't tell you which layer actually failed, but this does.
 
 ## Quickstart
 
@@ -92,18 +102,6 @@ services, or writes anything.
 
 Full reference: [docs/error-codes.md](docs/error-codes.md) ·
 [docs/architecture.md](docs/architecture.md) · [docs/faq.md](docs/faq.md)
-
-## Known confirmed fix (for the NeedsRemediation/CodeIntegrity case)
-
-```powershell
-.\ClaudeSetup.exe --exe
-```
-
-Installs Claude Desktop in legacy (non-MSIX) mode, bypassing the Code
-Integrity/AppModel path where this specific bug lives. This is an
-**undocumented installer flag** — verify the installer's signature
-(`Anthropic, PBC`) before running it, and see the full writeup for caveats:
-[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md#confirmed-fix).
 
 ## Roadmap
 

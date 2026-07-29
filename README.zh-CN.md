@@ -16,24 +16,35 @@
 > 是 Anthropic 的商标，本仓库仅在描述兼容性时引用这些名称。
 > 详见 [DISCLAIMER.md](DISCLAIMER.md)（英文）。
 
-## 问题背景
+## 核心案例
 
-Claude Desktop 会以通用建议解决不了的方式坏掉：
+**根因：** Windows Code Integrity（代码完整性校验）拦截了 Claude Desktop
+MSIX 软件包自带的一个 DLL（`vk_swiftshader.dll`），因为该软件包没有携带
+可用的完整性目录。应用在第一次渲染页面时崩溃，Windows 随后把它永久标记为
+`Modified, NeedsRemediation`。
+
+**已确认有效的修复方法：**
+
+```powershell
+.\ClaudeSetup.exe --exe
+```
+
+以传统（非 MSIX）模式重新安装 Claude Desktop，彻底绕开发生这个 bug 的路径。
+这是一个官方安装器未公开文档的参数——使用前请先验证安装器的数字签名
+（签名者应为 `Anthropic, PBC`）。完整日志证据和注意事项见：
+[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md)（英文）。
+
+**你遇到的是不是这种情况？**
 
 - 更新后无法启动
 - 点击图标没有任何反应
 - 登录页面一闪而过，窗口随后消失
 - Windows 提示应用"需要修复"——而修复本身也失败
 
-原因可能出在 MSIX/AppX 打包、Windows Code Integrity（代码完整性校验）、WebView2、
-你的代理环境，或者（如果你用 Cowork）Hyper-V/HCS——任何一环都可能独立出问题。
-"重装、清缓存、重启电脑"这类建议不会告诉你到底是哪一环坏了。
-
-**促成本项目的那个案例：** 一次被完整复现的排查记录——Claude Desktop 的 MSIX 软件包
-在首次启动后悄悄变成 `Modified, NeedsRemediation`，根因被定位到 Windows Code Integrity
-拦截了软件包自带的一个 DLL，并与四个独立提交的上游 bug 报告交叉核实，最终找到了
-确认有效的修复方法。完整记录见：
-[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md)（英文）。
+如果是，往下运行 `diagnose.ps1` 确认一下，然后直接用上面的修复方法。
+如果你的症状不太一样（代理报错、WebView2 问题、Cowork/虚拟化相关问题），
+下面更全面的检查项也覆盖了这些——"重装、清缓存、重启电脑"不会告诉你到底
+是哪一环坏了，但这个工具会。
 
 ## 快速开始
 
@@ -88,18 +99,6 @@ Verdict:
 
 完整参考文档（英文）：[docs/error-codes.md](docs/error-codes.md) ·
 [docs/architecture.md](docs/architecture.md) · [docs/faq.md](docs/faq.md)
-
-## 已确认有效的修复方法（针对 NeedsRemediation/CodeIntegrity 这个案例）
-
-```powershell
-.\ClaudeSetup.exe --exe
-```
-
-以传统（非 MSIX）模式安装 Claude Desktop，绕开发生这个特定 bug 的
-Code Integrity/AppModel 路径。这是一个**官方安装器未公开文档的参数**——
-使用前请先验证安装器的数字签名（签名者应为 `Anthropic, PBC`），
-更多注意事项见完整记录：
-[docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md](docs/known-issues/needsremediation-codeintegrity-vk_swiftshader.md#confirmed-fix)（英文）。
 
 ## 路线图
 
